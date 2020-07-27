@@ -17,22 +17,18 @@ import de.rub.nds.tlsscanner.serverscanner.report.SiteReport;
  *
  * @author robert
  */
-public class RenegotiationResult extends ProbeResult {
+public class StartTlsInjectionResult extends ProbeResult {
 
-    private TestResult secureRenegotiation;
-    private TestResult insecureRenegotiation;
+    private TestResult vulnerable;
 
-    public RenegotiationResult(TestResult secureRenegotiation, TestResult insecureRenegotiation) {
-        super(ProbeType.RENEGOTIATION);
-        this.secureRenegotiation = secureRenegotiation;
-        this.insecureRenegotiation = insecureRenegotiation;
+    public StartTlsInjectionResult(TestResult vulnerable) {
+        super(ProbeType.STARTTLS_INJECTION);
+        this.vulnerable = vulnerable;
     }
 
     @Override
     public void mergeData(SiteReport report) {
-        report.putResult(AnalyzedProperty.SUPPORTS_CLIENT_SIDE_SECURE_RENEGOTIATION, secureRenegotiation);
-        report.putResult(AnalyzedProperty.SUPPORTS_CLIENT_SIDE_INSECURE_RENEGOTIATION, insecureRenegotiation);
-        report.putResult(AnalyzedProperty.VULNERABLE_TO_RENEGOTIATION_ATTACK, insecureRenegotiation);
+        report.putResult(AnalyzedProperty.VULNERABLE_TO_STARTTLS_INJECTION_ATTACK, vulnerable);
     }
 
 }
