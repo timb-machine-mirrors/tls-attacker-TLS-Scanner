@@ -106,7 +106,7 @@ public class ThreadedScanJobExecutor extends ScanJobExecutor implements Observer
                             probeResult.merge(report);
                         }
 
-                    } catch (InterruptedException | ExecutionException ex) {
+                    } catch (Exception ex) {
                         LOGGER.error("Encountered an exception before we could merge the result. Killing the task.", ex);
                         result.cancel(true);
                         finishedFutures.add(result);
@@ -119,7 +119,7 @@ public class ThreadedScanJobExecutor extends ScanJobExecutor implements Observer
                         ProbeResult probeResult = result.get(1, TimeUnit.MINUTES);
                         finishedFutures.add(result);
                         probeResult.merge(report);
-                    } catch (InterruptedException | ExecutionException | TimeoutException ex) {
+                    } catch (Exception ex) {
                         result.cancel(true);
                         finishedFutures.add(result);
                         LOGGER.error("Killed task", ex);
@@ -175,23 +175,26 @@ public class ThreadedScanJobExecutor extends ScanJobExecutor implements Observer
 
     @Override
     public synchronized void update(Observable o, Object o1) {
-        if (o != null && o instanceof SiteReport) {
-            SiteReport report = (SiteReport) o;
-            List<TlsProbe> newNotSchedulesTasksList = new LinkedList<>();
-            for (TlsProbe probe : notScheduledTasks) {
-                if (probe.canBeExecuted(report)) {
-                    probe.adjustConfig(report);
-                    LOGGER.debug("Scheduling: " + probe.getProbeName());
-                    Future<ProbeResult> future = executor.submit(probe);
-                    futureResults.add(future);
-                } else {
-                    newNotSchedulesTasksList.add(probe);
+        try {
+            if (o != null && o instanceof SiteReport) {
+                SiteReport report = (SiteReport) o;
+                List<TlsProbe> newNotSchedulesTasksList = new LinkedList<>();
+                for (TlsProbe probe : notScheduledTasks) {
+                    if (probe.canBeExecuted(report)) {
+                        probe.adjustConfig(report);
+                        LOGGER.debug("Scheduling: " + probe.getProbeName());
+                        Future<ProbeResult> future = executor.submit(probe);
+                        futureResults.add(future);
+                    } else {
+                        newNotSchedulesTasksList.add(probe);
+                    }
                 }
+                this.notScheduledTasks = newNotSchedulesTasksList;
+            } else {
+                LOGGER.error(this.getClass().getName() + " received an update from a non-Sitereport");
             }
-            this.notScheduledTasks = newNotSchedulesTasksList;
-        } else {
-            LOGGER.error(this.getClass().getName() + " received an update from a non-Sitereport");
+        } catch (Exception E) {
+            E.printStackTrace();
         }
-
     }
 }
