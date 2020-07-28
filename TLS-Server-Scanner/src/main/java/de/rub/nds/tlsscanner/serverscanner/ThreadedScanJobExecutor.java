@@ -194,7 +194,7 @@ public class ThreadedScanJobExecutor extends ScanJobExecutor implements Observer
                 LOGGER.error(this.getClass().getName() + " received an update from a non-Sitereport");
             }
         } catch (Exception E) {
-            E.printStackTrace();
+            LOGGER.error("Problem during update call",E);
         }
     }
 }
