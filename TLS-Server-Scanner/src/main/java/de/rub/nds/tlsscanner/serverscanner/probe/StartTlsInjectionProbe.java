@@ -86,20 +86,21 @@ public class StartTlsInjectionProbe extends TlsProbe {
             }
             String injectionCommand;
             switch (scannerConfig.getStarttlsDelegate().getStarttlsType()) {
-                case IMAP:
+                case SMTP:
                     injectionCommand = "EHLO localhost\r\n";
                     break;
                 case POP3:
                     injectionCommand = "CAPA\r\n";
                     break;
-                case SMTP:
-                    injectionCommand = "injTest CAPABILITY\r\n";
+                case IMAP:
+                    injectionCommand = "inj CAPABILITY\r\n";
                     break;
                 default:
                     throw new RuntimeException("Injection not implemented");
             }
             sendAction.setAsciiText(sendAction.getAsciiText() + injectionCommand);
-            trace.addTlsAction(new ReceiveAction(new ApplicationMessage()));
+            trace.addTlsAction(new ReceiveAction(tlsConfig.getDefaultClientConnection().getAlias(),
+                    new ApplicationMessage(tlsConfig)));
             executeState(state);
             byte[] lastHandledApplicationMessageData = state.getTlsContext().getLastHandledApplicationMessageData();
             if (lastHandledApplicationMessageData == null) {
@@ -107,7 +108,7 @@ public class StartTlsInjectionProbe extends TlsProbe {
             } else {
                 String asciiMessage = new String(lastHandledApplicationMessageData, "US-ASCII");
                 if (scannerConfig.getStarttlsDelegate().getStarttlsType() == StarttlsType.IMAP) {
-                    if (asciiMessage.contains("injTest")) {
+                    if (asciiMessage.contains("inj")) {
                         vulnerable = TestResult.TRUE;
                     } else {
                         vulnerable = TestResult.FALSE;
