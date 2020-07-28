@@ -32,6 +32,7 @@ import de.rub.nds.tlsattacker.core.workflow.ParallelExecutor;
 import de.rub.nds.tlsattacker.core.workflow.WorkflowTrace;
 import de.rub.nds.tlsattacker.core.workflow.WorkflowTraceUtil;
 import de.rub.nds.tlsattacker.core.workflow.action.ReceiveAction;
+import de.rub.nds.tlsattacker.core.workflow.action.ReceivingAction;
 import de.rub.nds.tlsattacker.core.workflow.action.ResetConnectionAction;
 import de.rub.nds.tlsattacker.core.workflow.factory.WorkflowConfigurationFactory;
 import de.rub.nds.tlsattacker.core.workflow.factory.WorkflowTraceType;
@@ -243,7 +244,7 @@ public class Tls13Probe extends TlsProbe {
                 WorkflowTraceType.HANDSHAKE, RunningModeType.CLIENT);
 
         // remove certificate messages from 2nd handshake
-        ReceiveAction firstServerMsgs = (ReceiveAction) secondHandshake.getTlsActions().get(1);
+        ReceiveAction firstServerMsgs = (ReceiveAction) secondHandshake.getFirstReceivingAction();
         List<ProtocolMessage> newExpectedMsgs = new LinkedList<>();
         for (ProtocolMessage msg : firstServerMsgs.getExpectedMessages()) {
             if (!(msg instanceof CertificateMessage || msg instanceof CertificateVerifyMessage)) {
