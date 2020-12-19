@@ -8,13 +8,18 @@
  */
 package de.rub.nds.tlsscanner.serverscanner.probe;
 
+import de.rub.nds.modifiablevariable.util.ArrayConverter;
 import de.rub.nds.tlsattacker.core.config.Config;
 import de.rub.nds.tlsattacker.core.constants.*;
+import de.rub.nds.tlsattacker.core.protocol.message.ProtocolMessage;
+import de.rub.nds.tlsattacker.core.protocol.message.ServerCapaMessage;
 import de.rub.nds.tlsattacker.core.state.State;
 import de.rub.nds.tlsattacker.core.workflow.ParallelExecutor;
 import de.rub.nds.tlsattacker.core.workflow.WorkflowTrace;
+import de.rub.nds.tlsattacker.core.workflow.action.*;
 import de.rub.nds.tlsattacker.core.workflow.factory.WorkflowConfigurationFactory;
 import de.rub.nds.tlsattacker.core.workflow.factory.WorkflowTraceType;
+import de.rub.nds.tlsattacker.transport.ConnectionEndType;
 import de.rub.nds.tlsscanner.serverscanner.config.ScannerConfig;
 import de.rub.nds.tlsscanner.serverscanner.constants.ProbeType;
 import de.rub.nds.tlsscanner.serverscanner.rating.TestResult;
@@ -22,6 +27,8 @@ import de.rub.nds.tlsscanner.serverscanner.report.AnalyzedProperty;
 import de.rub.nds.tlsscanner.serverscanner.report.SiteReport;
 import de.rub.nds.tlsscanner.serverscanner.report.result.ProbeResult;
 import de.rub.nds.tlsscanner.serverscanner.report.result.StarttlsConfigurationResult;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Collections;
 import java.util.LinkedList;
@@ -58,17 +65,24 @@ public class StarttlsConfigurationProbe extends TlsProbe {
             tlsConfig.setAddSignatureAndHashAlgorithmsExtension(true);
             tlsConfig.setDefaultClientNamedGroups(NamedGroup.getImplemented());
             tlsConfig.getDefaultClientNamedGroups().remove(NamedGroup.ECDH_X25519);
-            //TODO: Workflow currently does not issue the clients CAPA-command
+
             WorkflowConfigurationFactory configFactory = new WorkflowConfigurationFactory(tlsConfig);
             WorkflowTrace trace = configFactory.createWorkflowTrace(WorkflowTraceType.DYNAMIC_HANDSHAKE,
                     RunningModeType.CLIENT);
+
+            trace.addTlsAction(1, MessageActionFactory.createStarttlsAsciiAction(tlsConfig,
+                    tlsConfig.getDefaultClientConnection(), ConnectionEndType.CLIENT,
+                    StarttlsMessageFactory.CommandType.C_CAPA, "US-ASCII"));
+            trace.addTlsAction(2, MessageActionFactory.createAction(tlsConfig, tlsConfig.getDefaultClientConnection(),
+                    ConnectionEndType.SERVER, new ServerCapaMessage(tlsConfig)));
+
             State state = new State(tlsConfig, trace);
             executeState(state);
 
-            //Check if Server's capabilities offered a plain login.
+            // Check if Server's capabilities offered a plain login.
             List<ServerCapability> offerPlainLogin = ServerCapability.getPlainLogin();
             List<ServerCapability> capabilities = state.getTlsContext().getServerCapabilities();
-            if(Collections.disjoint(offerPlainLogin, capabilities))
+            if (Collections.disjoint(offerPlainLogin, capabilities))
                 vulnerable = TestResult.FALSE;
             else
                 vulnerable = TestResult.TRUE;
