@@ -152,8 +152,14 @@ public class SiteReportPrinter {
         appendScoringResults(builder);
         appendRecommendations(builder);
         appendPerformanceData(builder);
+        appendStarttlsResults(builder);
 
         return builder.toString();
+    }
+
+    private void appendStarttlsResults(StringBuilder builder) {
+        prettyAppendHeading(builder, "STARTTLS Results");
+        prettyAppend(builder, "Starttls Configuration", AnalyzedProperty.OFFERS_PLAIN_LOGIN);
     }
 
     private void appendDirectRaccoonResults(StringBuilder builder) {
