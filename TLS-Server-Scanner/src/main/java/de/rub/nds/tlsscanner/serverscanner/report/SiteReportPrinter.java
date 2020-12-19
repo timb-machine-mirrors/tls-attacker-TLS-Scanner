@@ -824,6 +824,7 @@ public class SiteReportPrinter {
         prettyAppend(builder, "Heartbleed", AnalyzedProperty.VULNERABLE_TO_HEARTBLEED);
         prettyAppend(builder, "EarlyCcs", AnalyzedProperty.VULNERABLE_TO_EARLY_CCS);
         prettyAppend(builder, "CVE-2020-13777 (Zero key)", AnalyzedProperty.VULNERABLE_TO_SESSION_TICKET_ZERO_KEY);
+        prettyAppend(builder, "STARTTLS CMD Injection", AnalyzedProperty.VULNERABLE_TO_STARTTLS_INJECTION_ATTACK);
 
         return builder;
     }
