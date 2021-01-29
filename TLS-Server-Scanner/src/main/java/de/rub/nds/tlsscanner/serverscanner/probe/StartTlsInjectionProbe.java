@@ -85,15 +85,19 @@ public class StartTlsInjectionProbe extends TlsProbe {
                 throw new RuntimeException("Could not find last SendAscii action in WorkflowTrace");
             }
             String injectionCommand;
+            String retryCommand;
             switch (scannerConfig.getStarttlsDelegate().getStarttlsType()) {
                 case SMTP:
-                    injectionCommand = "EHLO localhost\r\n";
+                    injectionCommand = "EHLO scanner.example.com\r\n";
+                    retryCommand = "QUIT";
                     break;
                 case POP3:
                     injectionCommand = "CAPA\r\n";
+                    retryCommand = "QUIT";
                     break;
                 case IMAP:
                     injectionCommand = "inj CAPABILITY\r\n";
+                    retryCommand = "B LOGOUT";
                     break;
                 default:
                     throw new RuntimeException("Injection not implemented");
@@ -103,9 +107,7 @@ public class StartTlsInjectionProbe extends TlsProbe {
                     new ApplicationMessage(tlsConfig)));
             executeState(state);
             byte[] lastHandledApplicationMessageData = state.getTlsContext().getLastHandledApplicationMessageData();
-            if (lastHandledApplicationMessageData == null) {
-                vulnerable = TestResult.FALSE;
-            } else {
+            if (lastHandledApplicationMessageData != null) {
                 String asciiMessage = new String(lastHandledApplicationMessageData, "US-ASCII");
                 if (scannerConfig.getStarttlsDelegate().getStarttlsType() == StarttlsType.IMAP) {
                     if (asciiMessage.contains("inj")) {
@@ -115,6 +117,45 @@ public class StartTlsInjectionProbe extends TlsProbe {
                     }
                 } else {
                     vulnerable = TestResult.TRUE;
+                }
+            } else {
+                // See if injected command is evaluated after another command
+                trace.addTlsAction(new SendAsciiAction(retryCommand));// TODO:
+                                                                      // Send as
+                                                                      // ApplicationData
+                trace.addTlsAction(new ReceiveAction(tlsConfig.getDefaultClientConnection().getAlias(),
+                        new ApplicationMessage(tlsConfig)));
+                State retryState = new State(tlsConfig, trace);
+                executeState(retryState);
+                byte[] lastHandledRetryApplicationMessageData = retryState.getTlsContext()
+                        .getLastHandledApplicationMessageData();
+                if (lastHandledRetryApplicationMessageData == null)
+                    vulnerable = TestResult.FALSE;
+                else {
+                    String retryAsciiMessage = new String(lastHandledRetryApplicationMessageData, "US-ASCII");
+                    switch (scannerConfig.getStarttlsDelegate().getStarttlsType()) {
+                        case IMAP:
+                            if (retryAsciiMessage.contains("inj"))
+                                vulnerable = TestResult.TRUE;
+                            else
+                                vulnerable = TestResult.FALSE;
+                            break;
+                        case POP3:
+                            if (retryAsciiMessage.contains("STLS") || retryAsciiMessage.contains("USER")
+                                    || retryAsciiMessage.contains("SASL") || retryAsciiMessage.contains("CAPA")
+                                    || retryAsciiMessage.contains("UIDL") || retryAsciiMessage.contains("PIPELINING"))
+                                vulnerable = TestResult.TRUE;
+                            else
+                                vulnerable = TestResult.FALSE;
+                            break;
+                        case SMTP:
+                            if (retryAsciiMessage.contains("250"))
+                                vulnerable = TestResult.TRUE;
+                            else
+                                vulnerable = TestResult.FALSE;
+                        default:
+                            vulnerable = TestResult.COULD_NOT_TEST;
+                    }
                 }
             }
             return new StartTlsInjectionResult(vulnerable);

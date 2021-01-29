@@ -14,16 +14,7 @@ import de.rub.nds.tlsattacker.attacks.constants.EarlyCcsVulnerabilityType;
 import de.rub.nds.tlsattacker.attacks.padding.VectorResponse;
 import de.rub.nds.tlsattacker.attacks.util.response.EqualityError;
 import de.rub.nds.tlsattacker.attacks.util.response.ResponseFingerprint;
-import de.rub.nds.tlsattacker.core.constants.AlgorithmResolver;
-import de.rub.nds.tlsattacker.core.constants.CipherSuite;
-import de.rub.nds.tlsattacker.core.constants.CompressionMethod;
-import de.rub.nds.tlsattacker.core.constants.ExtensionType;
-import de.rub.nds.tlsattacker.core.constants.HashAlgorithm;
-import de.rub.nds.tlsattacker.core.constants.NamedGroup;
-import de.rub.nds.tlsattacker.core.constants.ProtocolVersion;
-import de.rub.nds.tlsattacker.core.constants.SignatureAndHashAlgorithm;
-import de.rub.nds.tlsattacker.core.constants.TokenBindingKeyParameters;
-import de.rub.nds.tlsattacker.core.constants.TokenBindingVersion;
+import de.rub.nds.tlsattacker.core.constants.*;
 import de.rub.nds.tlsattacker.core.https.header.HttpsHeader;
 import de.rub.nds.tlsscanner.serverscanner.constants.AnsiColor;
 import static de.rub.nds.tlsscanner.serverscanner.constants.CheckPatternType.CORRECT;
@@ -72,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import javax.xml.bind.JAXBException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -159,7 +151,10 @@ public class SiteReportPrinter {
 
     private void appendStarttlsResults(StringBuilder builder) {
         prettyAppendHeading(builder, "STARTTLS Results");
-        prettyAppend(builder, "Starttls Configuration", AnalyzedProperty.OFFERS_PLAIN_LOGIN);
+        prettyAppend(builder, "Offers plain authentication", AnalyzedProperty.OFFERS_PLAIN_LOGIN);
+        if (report.getSupportedCapabilities() != null && !report.getSupportedCapabilities().isEmpty()) {
+            prettyAppend(builder, "Supported capabilities: " + report.getSupportedCapabilities());
+        }
     }
 
     private void appendDirectRaccoonResults(StringBuilder builder) {

@@ -8,11 +8,10 @@
  */
 package de.rub.nds.tlsscanner.serverscanner.probe;
 
+import com.google.common.base.Ascii;
 import de.rub.nds.modifiablevariable.util.ArrayConverter;
 import de.rub.nds.tlsattacker.core.config.Config;
 import de.rub.nds.tlsattacker.core.constants.*;
-import de.rub.nds.tlsattacker.core.protocol.message.ProtocolMessage;
-import de.rub.nds.tlsattacker.core.protocol.message.ServerCapaMessage;
 import de.rub.nds.tlsattacker.core.state.State;
 import de.rub.nds.tlsattacker.core.workflow.ParallelExecutor;
 import de.rub.nds.tlsattacker.core.workflow.WorkflowTrace;
@@ -48,6 +47,7 @@ public class StarttlsConfigurationProbe extends TlsProbe {
         try {
             TestResult vulnerable = TestResult.FALSE;
             Config tlsConfig = getScannerConfig().createConfig();
+            StarttlsType type = tlsConfig.getStarttlsType();
             tlsConfig.setQuickReceive(true);
             List<CipherSuite> ciphersuites = new LinkedList<>();
             ciphersuites.addAll(supportedSuites);
@@ -70,24 +70,48 @@ public class StarttlsConfigurationProbe extends TlsProbe {
             WorkflowTrace trace = configFactory.createWorkflowTrace(WorkflowTraceType.DYNAMIC_HANDSHAKE,
                     RunningModeType.CLIENT);
 
-            trace.addTlsAction(1, MessageActionFactory.createStarttlsAsciiAction(tlsConfig,
-                    tlsConfig.getDefaultClientConnection(), ConnectionEndType.CLIENT,
-                    StarttlsMessageFactory.CommandType.C_CAPA, "US-ASCII"));
-            trace.addTlsAction(2, MessageActionFactory.createAction(tlsConfig, tlsConfig.getDefaultClientConnection(),
-                    ConnectionEndType.SERVER, new ServerCapaMessage(tlsConfig)));
+            StarttlsMessageFactory factory = new StarttlsMessageFactory(tlsConfig);
+            String capaCommand = factory.createSendCommand(StarttlsMessageFactory.CommandType.C_CAPA);
+            trace.addTlsAction(1, MessageActionFactory.createAsciiAction(tlsConfig.getDefaultClientConnection(),
+                    ConnectionEndType.CLIENT, capaCommand, "US-ASCII"));
+            trace.addTlsAction(2, MessageActionFactory.createAsciiAction(tlsConfig.getDefaultClientConnection(),
+                    ConnectionEndType.SERVER, "capabilities\r\n", "US-ASCII"));
+
+            /*
+             * trace.addTlsAction(1,
+             * MessageActionFactory.createStarttlsAsciiAction(tlsConfig,
+             * tlsConfig.getDefaultClientConnection(), ConnectionEndType.CLIENT,
+             * StarttlsMessageFactory.CommandType.C_CAPA, "US-ASCII"));
+             * trace.addTlsAction(2,
+             * MessageActionFactory.createAction(tlsConfig,
+             * tlsConfig.getDefaultClientConnection(), ConnectionEndType.SERVER,
+             * new ServerCapaMessage(tlsConfig)));
+             */
 
             State state = new State(tlsConfig, trace);
             executeState(state);
 
-            // Check if Server's capabilities offered a plain login.
-            List<ServerCapability> offerPlainLogin = ServerCapability.getPlainLogin();
-            List<ServerCapability> capabilities = state.getTlsContext().getServerCapabilities();
-            if (Collections.disjoint(offerPlainLogin, capabilities))
-                vulnerable = TestResult.FALSE;
-            else
-                vulnerable = TestResult.TRUE;
+            List<ServerCapability> capabilities = new LinkedList<ServerCapability>();
+            AsciiAction capaAction = (AsciiAction) trace.getTlsActions().get(2);
+            // TODO: IMAP splits divides capas by " "
+            // TODO: SMTP and POP3 divide capabilities by
+            String text = capaAction.getAsciiText();
+            String[] parts;
+            if (type == StarttlsType.IMAP) {
+                text = text.split("\\r?\\n")[0];
+                parts = text.split(" ");
+            } else
+                // (type == StarttlsType.POP3 || type == StarttlsType.SMTP)
+                parts = text.split("\\r?\\n");
 
-            return new StarttlsConfigurationResult(vulnerable);
+            // Check if Server's capabilities offered a plain login.
+            vulnerable = TestResult.FALSE;
+            for (String capability : parts) {
+                if (ServerCapability.offersPlainLogin(type, capability))
+                    vulnerable = TestResult.TRUE;
+            }
+
+            return new StarttlsConfigurationResult(vulnerable, text);
         } catch (Exception e) {
             LOGGER.error("Could not scan for " + getProbeName(), e);
             return new StarttlsConfigurationResult(TestResult.ERROR_DURING_TEST);
@@ -97,9 +121,19 @@ public class StarttlsConfigurationProbe extends TlsProbe {
     @Override
     public boolean canBeExecuted(SiteReport report) {
         // TODO FTP currently not supported
-        return report.getCipherSuites() != null && report.getCipherSuites().size() > 0 && !supportsOnlyTls13(report)
+        boolean result = report.getCipherSuites() != null && report.getCipherSuites().size() > 0
+                // && !supportsOnlyTls13(report)
                 && scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.NONE
                 && scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.FTP;
+        /*
+         * if (!result) { LOGGER.error("Ciphers != null:" +
+         * (report.getCipherSuites() != null ? "true" : "false"));
+         * LOGGER.error("Cipherssize > 0:" + (report.getCipherSuites().size() >
+         * 0 ? "true" : "false")); LOGGER.error("supportOnlyTLS13:" +
+         * (supportsOnlyTls13(report) ? "true" : "false"));
+         * LOGGER.error("Can not execute StarttlsConfigurationProbe"); }
+         */
+        return result;
     }
 
     @Override
@@ -109,7 +143,7 @@ public class StarttlsConfigurationProbe extends TlsProbe {
 
     @Override
     public void adjustConfig(SiteReport report) {
-
+        supportedSuites = report.getCipherSuites();
     }
 
     /**

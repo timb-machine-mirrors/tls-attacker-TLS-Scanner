@@ -11,14 +11,7 @@ package de.rub.nds.tlsscanner.serverscanner.report;
 import de.rub.nds.tlsattacker.attacks.constants.DrownVulnerabilityType;
 import de.rub.nds.tlsattacker.attacks.constants.EarlyCcsVulnerabilityType;
 import de.rub.nds.tlsattacker.core.certificate.ocsp.OCSPResponse;
-import de.rub.nds.tlsattacker.core.constants.CipherSuite;
-import de.rub.nds.tlsattacker.core.constants.CompressionMethod;
-import de.rub.nds.tlsattacker.core.constants.ExtensionType;
-import de.rub.nds.tlsattacker.core.constants.NamedGroup;
-import de.rub.nds.tlsattacker.core.constants.ProtocolVersion;
-import de.rub.nds.tlsattacker.core.constants.SignatureAndHashAlgorithm;
-import de.rub.nds.tlsattacker.core.constants.TokenBindingKeyParameters;
-import de.rub.nds.tlsattacker.core.constants.TokenBindingVersion;
+import de.rub.nds.tlsattacker.core.constants.*;
 import de.rub.nds.tlsattacker.core.https.header.HttpsHeader;
 import de.rub.nds.tlsscanner.serverscanner.constants.GcmPattern;
 import de.rub.nds.tlsscanner.serverscanner.constants.ProbeType;
@@ -145,6 +138,9 @@ public class SiteReport extends Observable implements Serializable {
     private Boolean ccaSupported = null;
     private Boolean ccaRequired = null;
     private List<CcaTestResult> ccaTestResultList;
+
+    // Starttls
+    private String supportedCapabilities;
 
     private List<ProbeType> probeTypeList;
 
@@ -666,5 +662,13 @@ public class SiteReport extends Observable implements Serializable {
 
     public synchronized void setOcspResults(List<OcspCertificateResult> ocspResults) {
         this.ocspResults = ocspResults;
+    }
+
+    public synchronized String getSupportedCapabilities() {
+        return supportedCapabilities;
+    }
+
+    public synchronized void setSupportedCapabilities(String capabilities) {
+        this.supportedCapabilities = capabilities;
     }
 }
