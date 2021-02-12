@@ -16,6 +16,11 @@ import de.rub.nds.tlsattacker.attacks.util.response.EqualityError;
 import de.rub.nds.tlsattacker.attacks.util.response.ResponseFingerprint;
 import de.rub.nds.tlsattacker.core.constants.*;
 import de.rub.nds.tlsattacker.core.https.header.HttpsHeader;
+import de.rub.nds.tlsattacker.core.protocol.message.ApplicationMessage;
+import de.rub.nds.tlsattacker.core.protocol.message.ProtocolMessage;
+import de.rub.nds.tlsattacker.core.record.AbstractRecord;
+import de.rub.nds.tlsattacker.core.record.BlobRecord;
+import de.rub.nds.tlsattacker.core.record.Record;
 import de.rub.nds.tlsscanner.serverscanner.constants.AnsiColor;
 import static de.rub.nds.tlsscanner.serverscanner.constants.CheckPatternType.CORRECT;
 import de.rub.nds.tlsscanner.serverscanner.constants.CipherSuiteGrade;
@@ -151,6 +156,7 @@ public class SiteReportPrinter {
 
     private void appendStarttlsResults(StringBuilder builder) {
         prettyAppendHeading(builder, "STARTTLS Results");
+        prettyAppend(builder, "Allows plain authentication", AnalyzedProperty.ALLOWS_PLAIN_LOGIN);
         prettyAppend(builder, "Offers plain authentication", AnalyzedProperty.OFFERS_PLAIN_LOGIN);
         if (report.getSupportedCapabilities() != null && !report.getSupportedCapabilities().isEmpty()) {
             prettyAppend(builder, "Supported capabilities: " + report.getSupportedCapabilities());

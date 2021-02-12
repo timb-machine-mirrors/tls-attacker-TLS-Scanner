@@ -234,7 +234,8 @@ public enum AnalyzedProperty {
     REQUIRES_CCA(AnalyzedPropertyCategory.CERTIFICATE),
     VULNERABLE_TO_CCA_BYPASS(AnalyzedPropertyCategory.ATTACKS),
 
-    OFFERS_PLAIN_LOGIN(AnalyzedPropertyCategory.STARTTLS);
+    OFFERS_PLAIN_LOGIN(AnalyzedPropertyCategory.STARTTLS),
+    ALLOWS_PLAIN_LOGIN(AnalyzedPropertyCategory.STARTTLS);
 
     private AnalyzedPropertyCategory category;
 
