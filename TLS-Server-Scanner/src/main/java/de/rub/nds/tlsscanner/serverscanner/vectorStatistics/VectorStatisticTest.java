@@ -14,11 +14,9 @@ import de.rub.nds.tlsattacker.attacks.util.response.EqualityError;
 import de.rub.nds.tlsattacker.attacks.util.response.FingerPrintChecker;
 import de.rub.nds.tlsattacker.attacks.util.response.ResponseFingerprint;
 import de.rub.nds.tlsscanner.serverscanner.leak.info.TestInfo;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+
+import java.util.*;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -144,7 +142,9 @@ public abstract class VectorStatisticTest<T extends TestInfo> {
     }
 
     public void extendTestWithVectorContainers(List<VectorContainer> vectorContainerList) {
-        for (VectorContainer otherContainer : vectorContainerList) {
+        ListIterator<VectorContainer> iterator = vectorContainerList.listIterator();
+        while (iterator.hasNext()) {
+            VectorContainer otherContainer = iterator.next();
             VectorContainer correctContainer = null;
             for (VectorContainer thisContainer : this.vectorContainerList) {
                 if (thisContainer.getVector().equals(otherContainer.getVector())) {
@@ -154,7 +154,7 @@ public abstract class VectorStatisticTest<T extends TestInfo> {
             if (correctContainer != null) {
                 correctContainer.addResponseFingerprint(otherContainer.getResponseFingerprintList());
             } else {
-                vectorContainerList.add(new VectorContainer(otherContainer.getVector(), otherContainer
+                iterator.add(new VectorContainer(otherContainer.getVector(), otherContainer
                         .getResponseFingerprintList()));
             }
         }
