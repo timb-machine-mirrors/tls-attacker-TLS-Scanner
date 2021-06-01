@@ -1,11 +1,12 @@
 /**
- * TLS-Scanner - A TLS configuration and analysis tool based on TLS-Attacker.
+ * TLS-Server-Scanner - A TLS configuration and analysis tool based on TLS-Attacker
  *
- * Copyright 2017-2019 Ruhr University Bochum / Hackmanit GmbH
+ * Copyright 2017-2021 Ruhr University Bochum, Paderborn University, Hackmanit GmbH
  *
- * Licensed under Apache License 2.0
- * http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under Apache License, Version 2.0
+ * http://www.apache.org/licenses/LICENSE-2.0.txt
  */
+
 package de.rub.nds.tlsscanner.serverscanner;
 
 import de.rub.nds.tlsattacker.core.workflow.NamedThreadFactory;
@@ -33,7 +34,7 @@ import org.apache.logging.log4j.Logger;
 
 /**
  *
- * @author Robert Merget - robert.merget@rub.de
+ * @author Robert Merget - {@literal <robert.merget@rub.de>}
  */
 public class ThreadedScanJobExecutor extends ScanJobExecutor implements Observer {
 
@@ -51,7 +52,7 @@ public class ThreadedScanJobExecutor extends ScanJobExecutor implements Observer
 
     public ThreadedScanJobExecutor(ScannerConfig config, ScanJob scanJob, int threadCount, String prefix) {
         executor = new ThreadPoolExecutor(threadCount, threadCount, 1, TimeUnit.DAYS, new LinkedBlockingDeque<>(),
-                new NamedThreadFactory(prefix));
+            new NamedThreadFactory(prefix));
         this.config = config;
         this.scanJob = scanJob;
     }
@@ -106,15 +107,17 @@ public class ThreadedScanJobExecutor extends ScanJobExecutor implements Observer
                             probeResult.merge(report);
                         }
 
-                    } catch (Exception ex) {
-                        LOGGER.error("Encountered an exception before we could merge the result. Killing the task.", ex);
+                    } catch (InterruptedException | ExecutionException ex) {
+                        LOGGER.error("Encountered an exception before we could merge the result. Killing the task.",
+                            ex);
                         result.cancel(true);
                         finishedFutures.add(result);
                     }
                 }
 
                 if (lastMerge + 1000 * 60 * 30 < System.currentTimeMillis()) {
-                    LOGGER.error("Last result merge is more than 30 minutes ago. Starting to kill threads to unblock...");
+                    LOGGER
+                        .error("Last result merge is more than 30 minutes ago. Starting to kill threads to unblock...");
                     try {
                         ProbeResult probeResult = result.get(1, TimeUnit.MINUTES);
                         finishedFutures.add(result);
@@ -148,7 +151,7 @@ public class ThreadedScanJobExecutor extends ScanJobExecutor implements Observer
             for (ExtractedValueContainer tempContainer : tempContainerList) {
                 if (containerMap.containsKey(tempContainer.getType())) {
                     containerMap.get(tempContainer.getType()).getExtractedValueList()
-                            .addAll(tempContainer.getExtractedValueList());
+                        .addAll(tempContainer.getExtractedValueList());
                 } else {
                     containerMap.put(tempContainer.getType(), tempContainer);
                 }
@@ -175,26 +178,22 @@ public class ThreadedScanJobExecutor extends ScanJobExecutor implements Observer
 
     @Override
     public synchronized void update(Observable o, Object o1) {
-        try {
-            if (o != null && o instanceof SiteReport) {
-                SiteReport report = (SiteReport) o;
-                List<TlsProbe> newNotSchedulesTasksList = new LinkedList<>();
-                for (TlsProbe probe : notScheduledTasks) {
-                    if (probe.canBeExecuted(report)) {
-                        probe.adjustConfig(report);
-                        LOGGER.debug("Scheduling: " + probe.getProbeName());
-                        Future<ProbeResult> future = executor.submit(probe);
-                        futureResults.add(future);
-                    } else {
-                        newNotSchedulesTasksList.add(probe);
-                    }
+        if (o != null && o instanceof SiteReport) {
+            SiteReport report = (SiteReport) o;
+            List<TlsProbe> newNotSchedulesTasksList = new LinkedList<>();
+            for (TlsProbe probe : notScheduledTasks) {
+                if (probe.canBeExecuted(report)) {
+                    probe.adjustConfig(report);
+                    LOGGER.debug("Scheduling: " + probe.getProbeName());
+                    Future<ProbeResult> future = executor.submit(probe);
+                    futureResults.add(future);
+                } else {
+                    newNotSchedulesTasksList.add(probe);
                 }
-                this.notScheduledTasks = newNotSchedulesTasksList;
-            } else {
-                LOGGER.error(this.getClass().getName() + " received an update from a non-Sitereport");
             }
-        } catch (Exception E) {
-            LOGGER.error("Problem during update call",E);
+            this.notScheduledTasks = newNotSchedulesTasksList;
+        } else {
+            LOGGER.error(this.getClass().getName() + " received an update from a non-siteReport");
         }
     }
 }

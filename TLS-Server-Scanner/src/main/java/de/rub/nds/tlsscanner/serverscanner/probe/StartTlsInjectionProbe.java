@@ -1,11 +1,12 @@
 /**
- * TLS-Scanner - A TLS configuration and analysis tool based on TLS-Attacker.
+ * TLS-Server-Scanner - A TLS configuration and analysis tool based on TLS-Attacker
  *
- * Copyright 2017-2019 Ruhr University Bochum / Hackmanit GmbH
+ * Copyright 2017-2021 Ruhr University Bochum, Paderborn University, Hackmanit GmbH
  *
- * Licensed under Apache License 2.0
- * http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under Apache License, Version 2.0
+ * http://www.apache.org/licenses/LICENSE-2.0.txt
  */
+
 /*
  * To change this license header, choose License Headers in Project Properties.
  * To change this template file, choose Tools | Templates
@@ -56,7 +57,7 @@ public class StartTlsInjectionProbe extends TlsProbe {
             tlsConfig.setQuickReceive(true);
             List<CipherSuite> ciphersuites = new LinkedList<>();
             ciphersuites.addAll(supportedSuites);
-            tlsConfig.setDefaultClientSupportedCiphersuites(ciphersuites);
+            tlsConfig.setDefaultClientSupportedCipherSuites(ciphersuites);
             tlsConfig.setHighestProtocolVersion(ProtocolVersion.TLS12);
             tlsConfig.setEnforceSettings(false);
             tlsConfig.setEarlyStop(true);
@@ -71,8 +72,8 @@ public class StartTlsInjectionProbe extends TlsProbe {
             tlsConfig.setDefaultClientNamedGroups(NamedGroup.getImplemented());
             tlsConfig.getDefaultClientNamedGroups().remove(NamedGroup.ECDH_X25519);
             WorkflowConfigurationFactory configFactory = new WorkflowConfigurationFactory(tlsConfig);
-            WorkflowTrace trace = configFactory.createWorkflowTrace(WorkflowTraceType.DYNAMIC_HANDSHAKE,
-                    RunningModeType.CLIENT);
+            WorkflowTrace trace =
+                configFactory.createWorkflowTrace(WorkflowTraceType.DYNAMIC_HANDSHAKE, RunningModeType.CLIENT);
             State state = new State(tlsConfig, trace);
             // Find last executed ascii send action
             SendAsciiAction sendAction = null;
@@ -100,7 +101,7 @@ public class StartTlsInjectionProbe extends TlsProbe {
             }
             sendAction.setAsciiText(sendAction.getAsciiText() + injectionCommand);
             trace.addTlsAction(new ReceiveAction(tlsConfig.getDefaultClientConnection().getAlias(),
-                    new ApplicationMessage(tlsConfig)));
+                new ApplicationMessage(tlsConfig)));
             executeState(state);
             byte[] lastHandledApplicationMessageData = state.getTlsContext().getLastHandledApplicationMessageData();
             if (lastHandledApplicationMessageData != null) {
@@ -127,8 +128,8 @@ public class StartTlsInjectionProbe extends TlsProbe {
     public boolean canBeExecuted(SiteReport report) {
         // TODO FTP currently not supported
         return report.getCipherSuites() != null && report.getCipherSuites().size() > 0 && !supportsOnlyTls13(report)
-                && scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.NONE
-                && scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.FTP;
+            && scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.NONE
+            && scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.FTP;
     }
 
     @Override
@@ -142,13 +143,12 @@ public class StartTlsInjectionProbe extends TlsProbe {
     }
 
     /**
-     * Used to run the probe with empty CS list if we already know versions
-     * before TLS 1.3 are not supported, to avoid stalling of probes that depend
-     * on this one
+     * Used to run the probe with empty CS list if we already know versions before TLS 1.3 are not supported, to avoid
+     * stalling of probes that depend on this one
      */
     private boolean supportsOnlyTls13(SiteReport report) {
         return report.getResult(AnalyzedProperty.SUPPORTS_TLS_1_0) == TestResult.FALSE
-                && report.getResult(AnalyzedProperty.SUPPORTS_TLS_1_1) == TestResult.FALSE
-                && report.getResult(AnalyzedProperty.SUPPORTS_TLS_1_2) == TestResult.FALSE;
+            && report.getResult(AnalyzedProperty.SUPPORTS_TLS_1_1) == TestResult.FALSE
+            && report.getResult(AnalyzedProperty.SUPPORTS_TLS_1_2) == TestResult.FALSE;
     }
 }

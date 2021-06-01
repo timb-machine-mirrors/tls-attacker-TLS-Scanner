@@ -1,26 +1,24 @@
 /**
- * TLS-Scanner - A TLS configuration and analysis tool based on TLS-Attacker.
+ * TLS-Server-Scanner - A TLS configuration and analysis tool based on TLS-Attacker
  *
- * Copyright 2017-2019 Ruhr University Bochum / Hackmanit GmbH
+ * Copyright 2017-2021 Ruhr University Bochum, Paderborn University, Hackmanit GmbH
  *
- * Licensed under Apache License 2.0
- * http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under Apache License, Version 2.0
+ * http://www.apache.org/licenses/LICENSE-2.0.txt
  */
+
 package de.rub.nds.tlsscanner.serverscanner.probe;
 
-import de.rub.nds.modifiablevariable.bytearray.ModifiableByteArray;
 import de.rub.nds.tlsattacker.core.config.Config;
 import de.rub.nds.tlsattacker.core.connection.AliasedConnection;
-import de.rub.nds.tlsattacker.core.constants.RunningModeType;
 import de.rub.nds.tlsattacker.core.constants.StarttlsType;
+import de.rub.nds.tlsattacker.core.starttls.StarttlsCommandType;
 import de.rub.nds.tlsattacker.core.state.State;
 import de.rub.nds.tlsattacker.core.workflow.ParallelExecutor;
 import de.rub.nds.tlsattacker.core.workflow.WorkflowTrace;
 import de.rub.nds.tlsattacker.core.workflow.action.ReceiveAsciiAction;
 import de.rub.nds.tlsattacker.core.workflow.action.SendAsciiAction;
-import de.rub.nds.tlsattacker.core.workflow.action.StarttlsActionFactory;
-import de.rub.nds.tlsattacker.core.workflow.action.StarttlsMessageFactory;
-import de.rub.nds.tlsattacker.core.workflow.factory.WorkflowConfigurationFactory;
+import de.rub.nds.tlsattacker.core.workflow.action.starttls.StarttlsActionFactory;
 import de.rub.nds.tlsattacker.transport.ConnectionEndType;
 import de.rub.nds.tlsscanner.serverscanner.config.ScannerConfig;
 import de.rub.nds.tlsscanner.serverscanner.constants.ProbeType;
@@ -29,7 +27,6 @@ import de.rub.nds.tlsscanner.serverscanner.report.SiteReport;
 import de.rub.nds.tlsscanner.serverscanner.report.result.ProbeResult;
 import de.rub.nds.tlsscanner.serverscanner.report.result.StarttlsPlainLoginResult;
 import org.bouncycastle.util.encoders.Base64;
-import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -58,8 +55,8 @@ public class StarttlsPlainLoginProbe extends TlsProbe {
                     vulnerable = executeSMTP(tlsConfig);
                     break;
                 default:
-                    throw new RuntimeException(getProbeName() + " not implemented for Starttls type \""
-                            + tlsConfig.getStarttlsType() + "\"");
+                    throw new RuntimeException(
+                        getProbeName() + " not implemented for Starttls type \"" + tlsConfig.getStarttlsType() + "\"");
             }
             return new StarttlsPlainLoginResult(vulnerable);
         } catch (Exception E) {
@@ -71,7 +68,7 @@ public class StarttlsPlainLoginProbe extends TlsProbe {
     @Override
     public boolean canBeExecuted(SiteReport report) {
         return scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.NONE
-                && scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.FTP;
+            && scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.FTP;
     }
 
     @Override
@@ -87,16 +84,16 @@ public class StarttlsPlainLoginProbe extends TlsProbe {
     private TestResult executeIMAP(Config tlsConfig) throws IOException {
         // LOGIN
         WorkflowTrace traceLogin = createEntryTrace(tlsConfig);
-        traceLogin.addTlsAction(new SendAsciiAction("log LOGIN " + tlsConfig.getPlainUser() + " "
-                + tlsConfig.getPlainPwd() + "\r\n", "US-ASCII"));
+        traceLogin.addTlsAction(new SendAsciiAction(
+            "log LOGIN " + tlsConfig.getPlainUser() + " " + tlsConfig.getPlainPwd() + "\r\n", "US-ASCII"));
         ReceiveAsciiAction responseActionLogin = new ReceiveAsciiAction("", "US-ASCII");
         traceLogin.addTlsAction(responseActionLogin);
         State stateLogin = new State(tlsConfig, traceLogin);
 
         // AUTHENTICATE PLAIN
         WorkflowTrace tracePlain = createEntryTrace(tlsConfig);
-        tracePlain.addTlsAction(new SendAsciiAction("pla AUTHENTICATE PLAIN " + new String(createSASL(tlsConfig))
-                + "\r\n", "US-ASCII"));
+        tracePlain.addTlsAction(
+            new SendAsciiAction("pla AUTHENTICATE PLAIN " + new String(createSASL(tlsConfig)) + "\r\n", "US-ASCII"));
         ReceiveAsciiAction responseActionPlain = new ReceiveAsciiAction("", "US-ASCII");
         tracePlain.addTlsAction(responseActionPlain);
         State statePlain = new State(tlsConfig, tracePlain);
@@ -106,7 +103,7 @@ public class StarttlsPlainLoginProbe extends TlsProbe {
         String responsePlain = responseActionPlain.getReceivedAsciiString();
 
         if ((responseLogin.contains("OK") && responseLogin.contains("log"))
-                || (responsePlain.contains("OK") && responsePlain.contains("pla")))
+            || (responsePlain.contains("OK") && responsePlain.contains("pla")))
             return TestResult.TRUE;
 
         return TestResult.FALSE;
@@ -126,8 +123,8 @@ public class StarttlsPlainLoginProbe extends TlsProbe {
 
         // AUTHENTICATE PLAIN
         WorkflowTrace tracePlain = createEntryTrace(tlsConfig);
-        tracePlain.addTlsAction(new SendAsciiAction("AUTH PLAIN " + new String(createSASL(tlsConfig)) + "\r\n",
-                "US-ASCII"));
+        tracePlain
+            .addTlsAction(new SendAsciiAction("AUTH PLAIN " + new String(createSASL(tlsConfig)) + "\r\n", "US-ASCII"));
         ReceiveAsciiAction responseActionPlain = new ReceiveAsciiAction("", "US-ASCII");
         tracePlain.addTlsAction(responseActionPlain);
         State statePlain = new State(tlsConfig, tracePlain);
@@ -160,8 +157,8 @@ public class StarttlsPlainLoginProbe extends TlsProbe {
 
         // AUTHENTICATE PLAIN
         WorkflowTrace tracePlain = createEntryTrace(tlsConfig);
-        tracePlain.addTlsAction(new SendAsciiAction("AUTH PLAIN " + new String(createSASL(tlsConfig)) + "\r\n",
-                "US-ASCII"));
+        tracePlain
+            .addTlsAction(new SendAsciiAction("AUTH PLAIN " + new String(createSASL(tlsConfig)) + "\r\n", "US-ASCII"));
         ReceiveAsciiAction responseActionPlain = new ReceiveAsciiAction("", "US-ASCII");
         tracePlain.addTlsAction(responseActionPlain);
         State statePlain = new State(tlsConfig, tracePlain);
@@ -174,7 +171,7 @@ public class StarttlsPlainLoginProbe extends TlsProbe {
         String responsePlain = responseActionPlain.getReceivedAsciiString();
 
         if ((responseLogin.contains("334") && responseUser.contains("334") && responsePass.contains("235"))
-                || responsePlain.contains("235"))
+            || responsePlain.contains("235"))
             return TestResult.TRUE;
 
         return TestResult.FALSE;
@@ -184,11 +181,11 @@ public class StarttlsPlainLoginProbe extends TlsProbe {
         WorkflowTrace workflowTrace = new WorkflowTrace();
         AliasedConnection connection = tlsConfig.getDefaultClientConnection();
         workflowTrace.addTlsAction(StarttlsActionFactory.createServerGreetingAction(tlsConfig, connection,
-                ConnectionEndType.SERVER, "US-ASCII"));
+            ConnectionEndType.SERVER, "US-ASCII"));
         workflowTrace.addTlsAction(StarttlsActionFactory.createStarttlsCommunicationAction(tlsConfig, connection,
-                ConnectionEndType.CLIENT, StarttlsMessageFactory.CommandType.C_CAPA, "US-ASCII"));
+            ConnectionEndType.CLIENT, StarttlsCommandType.C_CAPA, "US-ASCII"));
         workflowTrace.addTlsAction(StarttlsActionFactory.createServerCapabilitiesAction(tlsConfig, connection,
-                ConnectionEndType.SERVER, "US-ASCII"));
+            ConnectionEndType.SERVER, "US-ASCII"));
 
         return workflowTrace;
     }

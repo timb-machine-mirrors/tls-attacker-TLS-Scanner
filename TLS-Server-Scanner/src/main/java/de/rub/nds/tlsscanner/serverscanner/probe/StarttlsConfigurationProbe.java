@@ -1,17 +1,21 @@
 /**
- * TLS-Scanner - A TLS configuration and analysis tool based on TLS-Attacker.
+ * TLS-Server-Scanner - A TLS configuration and analysis tool based on TLS-Attacker
  *
- * Copyright 2017-2019 Ruhr University Bochum / Hackmanit GmbH
+ * Copyright 2017-2021 Ruhr University Bochum, Paderborn University, Hackmanit GmbH
  *
- * Licensed under Apache License 2.0
- * http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under Apache License, Version 2.0
+ * http://www.apache.org/licenses/LICENSE-2.0.txt
  */
+
 package de.rub.nds.tlsscanner.serverscanner.probe;
 
 import com.google.common.base.Ascii;
 import de.rub.nds.modifiablevariable.util.ArrayConverter;
 import de.rub.nds.tlsattacker.core.config.Config;
 import de.rub.nds.tlsattacker.core.constants.*;
+import de.rub.nds.tlsattacker.core.starttls.StarttlsCommandType;
+import de.rub.nds.tlsattacker.core.starttls.StarttlsProtocolFactory;
+import de.rub.nds.tlsattacker.core.starttls.StarttlsProtocolHandler;
 import de.rub.nds.tlsattacker.core.state.State;
 import de.rub.nds.tlsattacker.core.workflow.ParallelExecutor;
 import de.rub.nds.tlsattacker.core.workflow.WorkflowTrace;
@@ -51,7 +55,7 @@ public class StarttlsConfigurationProbe extends TlsProbe {
             tlsConfig.setQuickReceive(true);
             List<CipherSuite> ciphersuites = new LinkedList<>();
             ciphersuites.addAll(supportedSuites);
-            tlsConfig.setDefaultClientSupportedCiphersuites(ciphersuites);
+            tlsConfig.setDefaultClientSupportedCipherSuites(ciphersuites);
             tlsConfig.setHighestProtocolVersion(ProtocolVersion.TLS12);
             tlsConfig.setEnforceSettings(false);
             tlsConfig.setEarlyStop(true);
@@ -67,28 +71,24 @@ public class StarttlsConfigurationProbe extends TlsProbe {
             tlsConfig.getDefaultClientNamedGroups().remove(NamedGroup.ECDH_X25519);
 
             WorkflowConfigurationFactory configFactory = new WorkflowConfigurationFactory(tlsConfig);
-            WorkflowTrace trace = configFactory.createWorkflowTrace(WorkflowTraceType.DYNAMIC_HANDSHAKE,
-                    RunningModeType.CLIENT);
+            WorkflowTrace trace =
+                configFactory.createWorkflowTrace(WorkflowTraceType.DYNAMIC_HANDSHAKE, RunningModeType.CLIENT);
+            StarttlsProtocolHandler handler = StarttlsProtocolFactory.getProtocol(type);
+            State state = new State(tlsConfig, trace);
 
-            StarttlsMessageFactory factory = new StarttlsMessageFactory(tlsConfig);
-            String capaCommand = factory.createSendCommand(StarttlsMessageFactory.CommandType.C_CAPA);
-            trace.addTlsAction(1, MessageActionFactory.createAsciiAction(tlsConfig.getDefaultClientConnection(),
-                    ConnectionEndType.CLIENT, capaCommand, "US-ASCII"));
+            trace.addTlsAction(1,
+                MessageActionFactory.createAsciiAction(tlsConfig.getDefaultClientConnection(), ConnectionEndType.CLIENT,
+                    handler.createCommand(state.getTlsContext(), StarttlsCommandType.C_CAPA), "US-ASCII"));
             trace.addTlsAction(2, MessageActionFactory.createAsciiAction(tlsConfig.getDefaultClientConnection(),
-                    ConnectionEndType.SERVER, "capabilities\r\n", "US-ASCII"));
+                ConnectionEndType.SERVER, "capabilities\r\n", "US-ASCII"));
 
             /*
-             * trace.addTlsAction(1,
-             * MessageActionFactory.createStarttlsAsciiAction(tlsConfig,
+             * trace.addTlsAction(1, MessageActionFactory.createStarttlsAsciiAction(tlsConfig,
              * tlsConfig.getDefaultClientConnection(), ConnectionEndType.CLIENT,
-             * StarttlsMessageFactory.CommandType.C_CAPA, "US-ASCII"));
-             * trace.addTlsAction(2,
-             * MessageActionFactory.createAction(tlsConfig,
-             * tlsConfig.getDefaultClientConnection(), ConnectionEndType.SERVER,
-             * new ServerCapaMessage(tlsConfig)));
+             * StarttlsMessageFactory.CommandType.C_CAPA, "US-ASCII")); trace.addTlsAction(2,
+             * MessageActionFactory.createAction(tlsConfig, tlsConfig.getDefaultClientConnection(),
+             * ConnectionEndType.SERVER, new ServerCapaMessage(tlsConfig)));
              */
-
-            State state = new State(tlsConfig, trace);
             executeState(state);
 
             List<ServerCapability> capabilities = new LinkedList<ServerCapability>();
@@ -122,15 +122,13 @@ public class StarttlsConfigurationProbe extends TlsProbe {
     public boolean canBeExecuted(SiteReport report) {
         // TODO FTP currently not supported
         boolean result = report.getCipherSuites() != null && report.getCipherSuites().size() > 0
-                // && !supportsOnlyTls13(report)
-                && scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.NONE
-                && scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.FTP;
+        // && !supportsOnlyTls13(report)
+            && scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.NONE
+            && scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.FTP;
         /*
-         * if (!result) { LOGGER.error("Ciphers != null:" +
-         * (report.getCipherSuites() != null ? "true" : "false"));
-         * LOGGER.error("Cipherssize > 0:" + (report.getCipherSuites().size() >
-         * 0 ? "true" : "false")); LOGGER.error("supportOnlyTLS13:" +
-         * (supportsOnlyTls13(report) ? "true" : "false"));
+         * if (!result) { LOGGER.error("Ciphers != null:" + (report.getCipherSuites() != null ? "true" : "false"));
+         * LOGGER.error("Cipherssize > 0:" + (report.getCipherSuites().size() > 0 ? "true" : "false"));
+         * LOGGER.error("supportOnlyTLS13:" + (supportsOnlyTls13(report) ? "true" : "false"));
          * LOGGER.error("Can not execute StarttlsConfigurationProbe"); }
          */
         return result;
@@ -147,13 +145,12 @@ public class StarttlsConfigurationProbe extends TlsProbe {
     }
 
     /**
-     * Used to run the probe with empty CS list if we already know versions
-     * before TLS 1.3 are not supported, to avoid stalling of probes that depend
-     * on this one
+     * Used to run the probe with empty CS list if we already know versions before TLS 1.3 are not supported, to avoid
+     * stalling of probes that depend on this one
      */
     private boolean supportsOnlyTls13(SiteReport report) {
         return report.getResult(AnalyzedProperty.SUPPORTS_TLS_1_0) == TestResult.FALSE
-                && report.getResult(AnalyzedProperty.SUPPORTS_TLS_1_1) == TestResult.FALSE
-                && report.getResult(AnalyzedProperty.SUPPORTS_TLS_1_2) == TestResult.FALSE;
+            && report.getResult(AnalyzedProperty.SUPPORTS_TLS_1_1) == TestResult.FALSE
+            && report.getResult(AnalyzedProperty.SUPPORTS_TLS_1_2) == TestResult.FALSE;
     }
 }
