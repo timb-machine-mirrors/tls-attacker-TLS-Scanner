@@ -13,6 +13,7 @@ import com.google.common.base.Ascii;
 import de.rub.nds.modifiablevariable.util.ArrayConverter;
 import de.rub.nds.tlsattacker.core.config.Config;
 import de.rub.nds.tlsattacker.core.constants.*;
+import de.rub.nds.tlsattacker.core.starttls.ServerCapability;
 import de.rub.nds.tlsattacker.core.starttls.StarttlsCommandType;
 import de.rub.nds.tlsattacker.core.starttls.StarttlsProtocolFactory;
 import de.rub.nds.tlsattacker.core.starttls.StarttlsProtocolHandler;
@@ -20,6 +21,7 @@ import de.rub.nds.tlsattacker.core.state.State;
 import de.rub.nds.tlsattacker.core.workflow.ParallelExecutor;
 import de.rub.nds.tlsattacker.core.workflow.WorkflowTrace;
 import de.rub.nds.tlsattacker.core.workflow.action.*;
+import de.rub.nds.tlsattacker.core.workflow.action.starttls.StarttlsActionFactory;
 import de.rub.nds.tlsattacker.core.workflow.factory.WorkflowConfigurationFactory;
 import de.rub.nds.tlsattacker.core.workflow.factory.WorkflowTraceType;
 import de.rub.nds.tlsattacker.transport.ConnectionEndType;
@@ -30,8 +32,6 @@ import de.rub.nds.tlsscanner.serverscanner.report.AnalyzedProperty;
 import de.rub.nds.tlsscanner.serverscanner.report.SiteReport;
 import de.rub.nds.tlsscanner.serverscanner.report.result.ProbeResult;
 import de.rub.nds.tlsscanner.serverscanner.report.result.StarttlsConfigurationResult;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.Collections;
 import java.util.LinkedList;
@@ -70,44 +70,32 @@ public class StarttlsConfigurationProbe extends TlsProbe {
             tlsConfig.setDefaultClientNamedGroups(NamedGroup.getImplemented());
             tlsConfig.getDefaultClientNamedGroups().remove(NamedGroup.ECDH_X25519);
 
-            WorkflowConfigurationFactory configFactory = new WorkflowConfigurationFactory(tlsConfig);
-            WorkflowTrace trace =
-                configFactory.createWorkflowTrace(WorkflowTraceType.DYNAMIC_HANDSHAKE, RunningModeType.CLIENT);
-            StarttlsProtocolHandler handler = StarttlsProtocolFactory.getProtocol(type);
-            State state = new State(tlsConfig, trace);
+            // Create a WorkflowTrace that requests the servers capabilities.
+            WorkflowTrace workflowTrace = new WorkflowTrace();
+            workflowTrace.addTlsAction(StarttlsActionFactory.createServerGreetingAction(tlsConfig,
+                tlsConfig.getDefaultClientConnection(), ConnectionEndType.SERVER, "US-ASCII"));
+            workflowTrace.addTlsAction(StarttlsActionFactory.createStarttlsCommunicationAction(tlsConfig,
+                tlsConfig.getDefaultClientConnection(), ConnectionEndType.CLIENT, StarttlsCommandType.C_CAPA,
+                "US-ASCII"));
+            workflowTrace.addTlsAction(StarttlsActionFactory.createServerCapabilitiesAction(tlsConfig,
+                tlsConfig.getDefaultClientConnection(), ConnectionEndType.SERVER, "US-ASCII"));
+            workflowTrace.addTlsAction(StarttlsActionFactory.createStarttlsCommunicationAction(tlsConfig,
+                tlsConfig.getDefaultClientConnection(), ConnectionEndType.CLIENT, StarttlsCommandType.C_STARTTLS,
+                "US-ASCII"));
+            workflowTrace.addTlsAction(StarttlsActionFactory.createIssueStarttlsCommandAction(tlsConfig,
+                tlsConfig.getDefaultClientConnection(), ConnectionEndType.SERVER, StarttlsCommandType.S_STARTTLS,
+                "US-ASCII"));
 
-            trace.addTlsAction(1,
-                MessageActionFactory.createAsciiAction(tlsConfig.getDefaultClientConnection(), ConnectionEndType.CLIENT,
-                    handler.createCommand(state.getTlsContext(), StarttlsCommandType.C_CAPA), "US-ASCII"));
-            trace.addTlsAction(2, MessageActionFactory.createAsciiAction(tlsConfig.getDefaultClientConnection(),
-                ConnectionEndType.SERVER, "capabilities\r\n", "US-ASCII"));
-
-            /*
-             * trace.addTlsAction(1, MessageActionFactory.createStarttlsAsciiAction(tlsConfig,
-             * tlsConfig.getDefaultClientConnection(), ConnectionEndType.CLIENT,
-             * StarttlsMessageFactory.CommandType.C_CAPA, "US-ASCII")); trace.addTlsAction(2,
-             * MessageActionFactory.createAction(tlsConfig, tlsConfig.getDefaultClientConnection(),
-             * ConnectionEndType.SERVER, new ServerCapaMessage(tlsConfig)));
-             */
+            State state = new State(tlsConfig, workflowTrace);
             executeState(state);
 
-            List<ServerCapability> capabilities = new LinkedList<ServerCapability>();
-            AsciiAction capaAction = (AsciiAction) trace.getTlsActions().get(2);
-            // TODO: IMAP splits divides capas by " "
-            // TODO: SMTP and POP3 divide capabilities by
-            String text = capaAction.getAsciiText();
-            String[] parts;
-            if (type == StarttlsType.IMAP) {
-                text = text.split("\\r?\\n")[0];
-                parts = text.split(" ");
-            } else
-                // (type == StarttlsType.POP3 || type == StarttlsType.SMTP)
-                parts = text.split("\\r?\\n");
-
-            // Check if Server's capabilities offered a plain login.
+            StarttlsProtocolHandler handler = StarttlsProtocolFactory.getProtocol(type);
+            List<ServerCapability> capabilities = state.getTlsContext().getServerCapabilities();
             vulnerable = TestResult.FALSE;
-            for (String capability : parts) {
-                if (ServerCapability.offersPlainLogin(type, capability))
+            String text = "";
+            for (ServerCapability capa : capabilities) {
+                text += capa.getName() + ",";
+                if (handler.offersPlainLogin(capa.getName()))
                     vulnerable = TestResult.TRUE;
             }
 
@@ -121,16 +109,9 @@ public class StarttlsConfigurationProbe extends TlsProbe {
     @Override
     public boolean canBeExecuted(SiteReport report) {
         // TODO FTP currently not supported
-        boolean result = report.getCipherSuites() != null && report.getCipherSuites().size() > 0
-        // && !supportsOnlyTls13(report)
-            && scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.NONE
+        boolean result = scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.NONE
             && scannerConfig.getStarttlsDelegate().getStarttlsType() != StarttlsType.FTP;
-        /*
-         * if (!result) { LOGGER.error("Ciphers != null:" + (report.getCipherSuites() != null ? "true" : "false"));
-         * LOGGER.error("Cipherssize > 0:" + (report.getCipherSuites().size() > 0 ? "true" : "false"));
-         * LOGGER.error("supportOnlyTLS13:" + (supportsOnlyTls13(report) ? "true" : "false"));
-         * LOGGER.error("Can not execute StarttlsConfigurationProbe"); }
-         */
+
         return result;
     }
 

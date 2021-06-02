@@ -87,7 +87,7 @@ public class TlsScanner {
         probeList.add(new SniProbe(config, parallelExecutor));
         probeList.add(new CompressionsProbe(config, parallelExecutor));
         probeList.add(new NamedCurvesProbe(config, parallelExecutor));
-        // probeList.add(new AlpnProbe(config, parallelExecutor));
+        probeList.add(new AlpnProbe(config, parallelExecutor));
         probeList.add(new AlpacaProbe(config, parallelExecutor));
         probeList.add(new CertificateProbe(config, parallelExecutor));
         probeList.add(new OcspProbe(config, parallelExecutor));
@@ -95,7 +95,7 @@ public class TlsScanner {
         probeList.add(new CipherSuiteProbe(config, parallelExecutor));
         probeList.add(new DirectRaccoonProbe(config, parallelExecutor));
         probeList.add(new CipherSuiteOrderProbe(config, parallelExecutor));
-        // probeList.add(new ExtensionProbe(config, parallelExecutor));
+        probeList.add(new ExtensionProbe(config, parallelExecutor));
         probeList.add(new TokenbindingProbe(config, parallelExecutor));
         probeList.add(new HttpHeaderProbe(config, parallelExecutor));
         probeList.add(new HttpFalseStartProbe(config, parallelExecutor));
@@ -121,12 +121,16 @@ public class TlsScanner {
         probeList.add(new StarttlsConfigurationProbe(config, parallelExecutor));
         probeList.add(new StarttlsPlainLoginProbe(config, parallelExecutor));
         probeList.add(new StartTlsInjectionProbe(config, parallelExecutor));
-        /**
-         * afterList.add(new Sweet32AfterProbe()); afterList.add(new PoodleAfterProbe()); afterList.add(new
-         * FreakAfterProbe()); afterList.add(new LogjamAfterProbe()); afterList.add(new EvaluateRandomnessAfterProbe());
-         * afterList.add(new EcPublicKeyAfterProbe()); afterList.add(new DhValueAfterProbe()); afterList.add(new
-         * PaddingOracleIdentificationAfterProbe()); afterList.add(new RaccoonAttackAfterProbe());
-         */
+        afterList.add(new Sweet32AfterProbe());
+        afterList.add(new PoodleAfterProbe());
+        afterList.add(new FreakAfterProbe());
+        afterList.add(new LogjamAfterProbe());
+        afterList.add(new EvaluateRandomnessAfterProbe());
+        afterList.add(new EcPublicKeyAfterProbe());
+        afterList.add(new DhValueAfterProbe());
+        afterList.add(new PaddingOracleIdentificationAfterProbe());
+        afterList.add(new RaccoonAttackAfterProbe());
+
     }
 
     private void addProbeToProbeList(TlsProbe probe) {
